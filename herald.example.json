@@ -1,0 +1,54 @@
+{
+  "_comment": "Copy this to ~/.herald.json and fill in your values",
+
+  "_anthropic_example": {
+    "provider": {
+      "type": "anthropic",
+      "apiKey": "sk-ant-...",
+      "model": "claude-opus-4-8"
+    }
+  },
+
+  "_openai_compatible_examples": [
+    {
+      "provider": {
+        "type": "openai-compatible",
+        "baseURL": "https://api.openai.com/v1",
+        "apiKey": "sk-...",
+        "model": "gpt-4o"
+      }
+    },
+    {
+      "provider": {
+        "type": "openai-compatible",
+        "baseURL": "https://openrouter.ai/api/v1",
+        "apiKey": "sk-or-...",
+        "model": "anthropic/claude-opus-4-8",
+        "headers": {
+          "HTTP-Referer": "https://github.com/ytz-yl/HeraldStew",
+          "X-Title": "HeraldStew"
+        }
+      }
+    },
+    {
+      "provider": {
+        "type": "openai-compatible",
+        "baseURL": "http://localhost:11434/v1",
+        "model": "qwen2.5-coder:32b"
+      }
+    },
+    {
+      "provider": {
+        "type": "openai-compatible",
+        "baseURL": "https://api.deepseek.com/v1",
+        "apiKey": "sk-...",
+        "model": "deepseek-chat"
+      }
+    }
+  ],
+
+  "provider": {
+    "type": "anthropic",
+    "model": "claude-opus-4-8"
+  }
+}

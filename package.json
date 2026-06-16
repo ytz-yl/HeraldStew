@@ -1,0 +1,54 @@
+{
+  "name": "heraldstew",
+  "version": "0.1.0",
+  "description": "Conversational AI agent configuration assistant",
+  "type": "module",
+  "bin": {
+    "herald": "./dist/cli/index.js"
+  },
+  "scripts": {
+    "dev": "tsx src/cli/index.ts",
+    "build": "tsup",
+    "test": "vitest run",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "latest",
+    "@types/react": "^19.2.17",
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "execa": "^9.5.0",
+    "ink": "^7.0.6",
+    "ink-text-input": "^6.0.0",
+    "js-yaml": "^4.1.0",
+    "openai": "^6.42.0",
+    "ora": "^9.4.0",
+    "react": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/marked-terminal": "^6.0.0",
+    "@types/node": "^22.19.21",
+    "tsup": "^8.3.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "tsup": {
+    "entry": [
+      "src/cli/index.ts"
+    ],
+    "format": [
+      "esm"
+    ],
+    "target": "node20",
+    "outDir": "dist",
+    "clean": true,
+    "banner": {
+      "js": "#!/usr/bin/env node"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
