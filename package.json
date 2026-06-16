@@ -4,7 +4,7 @@
   "description": "Conversational AI agent configuration assistant",
   "type": "module",
   "bin": {
-    "herald": "./dist/index.js"
+    "herald": "dist/index.js"
   },
   "scripts": {
     "dev": "tsx src/cli/index.ts",
