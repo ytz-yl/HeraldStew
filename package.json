@@ -51,6 +51,9 @@
       "js": "#!/usr/bin/env node"
     }
   },
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=20"
   }
