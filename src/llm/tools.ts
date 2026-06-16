@@ -16,6 +16,14 @@ export const HERALD_TOOLS: ToolDef[] = [
           type: "string",
           description: "Working directory for the command (optional)",
         },
+        timeout: {
+          type: "number",
+          description: "Timeout in milliseconds (default 120000). Use a larger value for installs or long-running builds.",
+        },
+        detached: {
+          type: "boolean",
+          description: "Run in background — herald can exit without killing the process. Output is written to a temp log file. Use for package installs that may take a long time.",
+        },
       },
       required: ["command"],
     },

@@ -26,7 +26,7 @@ export interface ToolDef {
   parameters: Record<string, unknown>
 }
 
-export type ToolExecutor = (name: string, input: unknown) => Promise<string>
+export type ToolExecutor = (name: string, input: unknown, onOutput?: (chunk: string) => void) => Promise<string>
 
 export interface LLMProvider {
   chat(

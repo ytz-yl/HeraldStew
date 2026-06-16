@@ -4,14 +4,20 @@ import { fetchUrl } from "./network.js"
 import { detectEnvironment } from "../utils/detect.js"
 import { readMemory, writeMemory } from "./memory.js"
 
-export type ToolExecutor = (name: string, input: unknown) => Promise<string>
+export type ToolExecutor = (name: string, input: unknown, onOutput?: (chunk: string) => void) => Promise<string>
 
 export function createToolExecutor(): ToolExecutor {
-  return async (name: string, input: unknown): Promise<string> => {
+  return async (name: string, input: unknown, onOutput?: (chunk: string) => void): Promise<string> => {
     const i = input as Record<string, unknown>
     switch (name) {
       case "run_command":
-        return runCommand(i.command as string, i.cwd as string | undefined)
+        return runCommand(
+          i.command as string,
+          i.cwd as string | undefined,
+          (i.timeout as number | undefined) ?? 120_000,
+          (i.detached as boolean | undefined) ?? false,
+          onOutput,
+        )
       case "read_file":
         return readFile(i.path as string)
       case "write_file":
