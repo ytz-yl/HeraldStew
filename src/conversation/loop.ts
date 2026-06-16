@@ -46,7 +46,7 @@ export async function startConversation(): Promise<void> {
     process.stdout.write(chalk.bold.cyan("\nHerald: "))
 
     try {
-      const reply = await runAgentLoop(
+      const { text: reply } = await runAgentLoop(
         provider,
         history,
         executor,

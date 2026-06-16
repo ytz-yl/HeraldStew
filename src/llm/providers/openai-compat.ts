@@ -81,15 +81,22 @@ export class OpenAICompatibleProvider implements LLMProvider {
       messages: oaiMessages,
       ...(oaiTools ? { tools: oaiTools, tool_choice: "auto" } : {}),
       stream: true,
+      stream_options: { include_usage: true },
     })
 
     let fullText = ""
+    let usageInputTokens = 0
+    let usageOutputTokens = 0
     const toolCallAccumulators: Map<
       number,
       { id: string; name: string; argsRaw: string }
     > = new Map()
 
     for await (const chunk of stream) {
+      if (chunk.usage) {
+        usageInputTokens = chunk.usage.prompt_tokens ?? 0
+        usageOutputTokens = chunk.usage.completion_tokens ?? 0
+      }
       const delta = chunk.choices[0]?.delta
       if (!delta) continue
 
@@ -126,6 +133,12 @@ export class OpenAICompatibleProvider implements LLMProvider {
       toolCalls.push({ id: acc.id, name: acc.name, input })
     }
 
-    return { text: fullText, toolCalls }
+    return {
+      text: fullText,
+      toolCalls,
+      ...(usageInputTokens > 0
+        ? { usage: { inputTokens: usageInputTokens, outputTokens: usageOutputTokens } }
+        : {}),
+    }
   }
 }

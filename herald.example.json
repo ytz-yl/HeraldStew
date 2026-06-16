@@ -1,12 +1,15 @@
 {
-  "_comment": "Copy this to ~/.herald.json and fill in your values",
+  "_comment": "Copy this to ~/.herald/settings.json (or legacy ~/.herald.json) and fill in your values.",
+
+  "_context_comment": "maxContextTokens controls when conversation history is compacted via LLM summary. Default: 80000. Increase for models with large context windows (e.g. 200000 for claude-opus-4-8), decrease to save cost.",
 
   "_anthropic_example": {
     "provider": {
       "type": "anthropic",
       "apiKey": "sk-ant-...",
       "model": "claude-opus-4-8"
-    }
+    },
+    "maxContextTokens": 160000
   },
 
   "_openai_compatible_examples": [
@@ -16,7 +19,8 @@
         "baseURL": "https://api.openai.com/v1",
         "apiKey": "sk-...",
         "model": "gpt-4o"
-      }
+      },
+      "maxContextTokens": 100000
     },
     {
       "provider": {
@@ -28,14 +32,16 @@
           "HTTP-Referer": "https://github.com/ytz-yl/HeraldStew",
           "X-Title": "HeraldStew"
         }
-      }
+      },
+      "maxContextTokens": 160000
     },
     {
       "provider": {
         "type": "openai-compatible",
         "baseURL": "http://localhost:11434/v1",
         "model": "qwen2.5-coder:32b"
-      }
+      },
+      "maxContextTokens": 30000
     },
     {
       "provider": {
@@ -43,12 +49,14 @@
         "baseURL": "https://api.deepseek.com/v1",
         "apiKey": "sk-...",
         "model": "deepseek-chat"
-      }
+      },
+      "maxContextTokens": 60000
     }
   ],
 
   "provider": {
     "type": "anthropic",
     "model": "claude-opus-4-8"
-  }
+  },
+  "maxContextTokens": 80000
 }

@@ -5,15 +5,21 @@ import type { HeraldConfig, LLMProvider, ProviderConfig } from "./types.js"
 import { AnthropicProvider } from "./providers/anthropic.js"
 import { OpenAICompatibleProvider } from "./providers/openai-compat.js"
 
-export const HERALD_CONFIG_PATH = join(homedir(), ".herald.json")
+// New canonical path: ~/.herald/settings.json
+export const HERALD_DIR = join(homedir(), ".herald")
+export const HERALD_CONFIG_PATH = join(HERALD_DIR, "settings.json")
+// Legacy path for backwards compatibility
+const HERALD_LEGACY_CONFIG_PATH = join(homedir(), ".herald.json")
 
 export async function loadConfig(): Promise<HeraldConfig> {
-  // 1. Try reading ~/.herald.json
-  try {
-    const raw = await readFile(HERALD_CONFIG_PATH, "utf-8")
-    return JSON.parse(raw) as HeraldConfig
-  } catch {
-    // fall through to env-based defaults
+  // 1. Try ~/.herald/settings.json
+  for (const path of [HERALD_CONFIG_PATH, HERALD_LEGACY_CONFIG_PATH]) {
+    try {
+      const raw = await readFile(path, "utf-8")
+      return JSON.parse(raw) as HeraldConfig
+    } catch {
+      // continue
+    }
   }
 
   // 2. Derive from environment variables

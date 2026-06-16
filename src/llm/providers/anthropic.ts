@@ -93,6 +93,13 @@ export class AnthropicProvider implements LLMProvider {
       return { id: b.id, name: b.name, input: b.input }
     })
 
-    return { text, toolCalls }
+    return {
+      text,
+      toolCalls,
+      usage: {
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+      },
+    }
   }
 }

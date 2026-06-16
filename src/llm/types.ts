@@ -7,6 +7,7 @@ export interface ToolCall {
 export interface AssistantMessage {
   text: string
   toolCalls: ToolCall[]
+  usage?: { inputTokens: number; outputTokens: number }
 }
 
 export type ToolResult = {
@@ -58,4 +59,5 @@ export type ProviderConfig = AnthropicProviderConfig | OpenAICompatibleProviderC
 
 export interface HeraldConfig {
   provider: ProviderConfig
+  maxContextTokens?: number
 }

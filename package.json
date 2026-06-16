@@ -4,11 +4,12 @@
   "description": "Conversational AI agent configuration assistant",
   "type": "module",
   "bin": {
-    "herald": "./dist/cli/index.js"
+    "herald": "./dist/index.js"
   },
   "scripts": {
     "dev": "tsx src/cli/index.ts",
     "build": "tsup",
+    "prepare": "tsup",
     "test": "vitest run",
     "lint": "tsc --noEmit"
   },
@@ -18,9 +19,11 @@
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
     "execa": "^9.5.0",
+    "https-proxy-agent": "^9.1.0",
     "ink": "^7.0.6",
     "ink-text-input": "^6.0.0",
     "js-yaml": "^4.1.0",
+    "node-fetch": "^3.3.2",
     "openai": "^6.42.0",
     "ora": "^9.4.0",
     "react": "^19.2.7"

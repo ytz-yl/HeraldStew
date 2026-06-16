@@ -60,13 +60,17 @@ export const HERALD_TOOLS: ToolDef[] = [
   },
   {
     name: "fetch_url",
-    description: "Fetch the content of a URL (docs, version info, install scripts).",
+    description: "Fetch the content of a URL (docs, version info, install scripts). If the URL is not accessible directly, pass a proxy URL via the proxy parameter (e.g. http://127.0.0.1:7897).",
     parameters: {
       type: "object",
       properties: {
         url: {
           type: "string",
           description: "The URL to fetch",
+        },
+        proxy: {
+          type: "string",
+          description: "Optional HTTP/HTTPS proxy URL, e.g. http://127.0.0.1:7897",
         },
       },
       required: ["url"],
@@ -80,6 +84,48 @@ export const HERALD_TOOLS: ToolDef[] = [
       type: "object",
       properties: {},
       required: [],
+    },
+  },
+  {
+    name: "read_memory",
+    description:
+      "Read a memory file from ~/.herald/memory/{agent}/{file}.json. Use this to recall previously saved agent state, task history, or notes. Call at the start of a conversation to recall what you know about each agent.",
+    parameters: {
+      type: "object",
+      properties: {
+        agent: {
+          type: "string",
+          description: "Agent framework name, e.g. claude-code, hermes, opencode, codex (lowercase letters, digits, hyphens only)",
+        },
+        file: {
+          type: "string",
+          description: "File name without extension, e.g. agent, tasks, notes (lowercase letters, digits, hyphens only)",
+        },
+      },
+      required: ["agent", "file"],
+    },
+  },
+  {
+    name: "write_memory",
+    description:
+      "Write (overwrite) a memory file at ~/.herald/memory/{agent}/{file}.json. Use this to persist agent state after install/config, record completed tasks, or save user preferences. Content should be valid JSON.",
+    parameters: {
+      type: "object",
+      properties: {
+        agent: {
+          type: "string",
+          description: "Agent framework name, e.g. claude-code, hermes, opencode, codex (lowercase letters, digits, hyphens only)",
+        },
+        file: {
+          type: "string",
+          description: "File name without extension, e.g. agent, tasks, notes (lowercase letters, digits, hyphens only)",
+        },
+        content: {
+          type: "string",
+          description: "Content to write (should be valid JSON)",
+        },
+      },
+      required: ["agent", "file", "content"],
     },
   },
 ]

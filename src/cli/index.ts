@@ -35,7 +35,7 @@ program
     // Full-screen TUI
     const [provider, config] = await Promise.all([resolveProvider(), loadConfig()])
     const { startTUI } = await import("../tui/run.js")
-    startTUI(provider, config.provider)
+    startTUI(provider, config.provider, config.maxContextTokens ?? 80000)
   })
 
 program

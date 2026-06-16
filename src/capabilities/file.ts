@@ -1,8 +1,16 @@
 import { readFile as fsRead, writeFile as fsWrite, mkdir } from "fs/promises"
-import { dirname } from "path"
+import { dirname, join } from "path"
+import { homedir } from "os"
 import yaml from "js-yaml"
 
+function expandHome(path: string): string {
+  if (path === "~") return homedir()
+  if (path.startsWith("~/")) return join(homedir(), path.slice(2))
+  return path
+}
+
 export async function readFile(path: string): Promise<string> {
+  path = expandHome(path)
   try {
     return await fsRead(path, "utf-8")
   } catch (err) {
@@ -18,6 +26,7 @@ export async function writeFile(
   content: string,
   mode: "replace" | "merge"
 ): Promise<string> {
+  path = expandHome(path)
   try {
     await mkdir(dirname(path), { recursive: true })
 
