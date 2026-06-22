@@ -1,6 +1,6 @@
 {
   "name": "heraldstew",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Conversational AI agent configuration assistant",
   "type": "module",
   "bin": {
