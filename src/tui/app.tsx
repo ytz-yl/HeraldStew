@@ -39,7 +39,11 @@ export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
   const [input, setInput] = useState("")
   const [busy, setBusy] = useState(false)
   const [tick, setTick] = useState(0)
+  // scrollOffset: lines scrolled up from the bottom (0 = pinned to newest, positive = scrolled up)
   const [scrollOffset, setScrollOffset] = useState(0)
+  const manualScrollRef = useRef(false)
+  // Max scrollable rows, reported by MessageList from its measured content height.
+  const maxScrollRef = useRef(0)
   const [showDashboard, setShowDashboard] = useState(false)
   const [dashboardData, setDashboardData] = useState<{ statuses: AgentStatus[]; projects: ProjectGroup[] } | null>(null)
   const [dashCursor, setDashCursor] = useState(0)
@@ -188,9 +192,16 @@ export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
       }
     } else {
       if (key.upArrow) {
-        setScrollOffset((o) => Math.min(o + 1, Math.max(0, messages.length - 1)))
+        // scroll up = see older content = increase offset from bottom (clamped to measured max)
+        manualScrollRef.current = true
+        setScrollOffset((o) => Math.min(maxScrollRef.current, (isFinite(o) ? o : 0) + 3))
       } else if (key.downArrow) {
-        setScrollOffset((o) => Math.max(0, o - 1))
+        // scroll down = return to newer content = decrease offset toward 0 (bottom)
+        setScrollOffset((o) => {
+          const newO = Math.max(0, (isFinite(o) ? o : 0) - 3)
+          if (newO === 0) manualScrollRef.current = false
+          return newO
+        })
       }
     }
   })
@@ -199,7 +210,8 @@ export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
     async (text: string) => {
       if (!text.trim() || busy) return
       setInput("")
-      setScrollOffset(0)
+      manualScrollRef.current = false
+      setScrollOffset(0) // 0 = pinned to bottom in new semantics
 
       if (text.trim() === "/doctor") {
         setMessages((prev) => [...prev, { id: nextId(), role: "user", parts: [{ type: "text", text: text.trim() }] }])
@@ -363,13 +375,21 @@ export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
   const rows = stdout?.rows ?? 24
   const spinnerChar = SPINNER_FRAMES[tick % SPINNER_FRAMES.length]
 
-  const windowSize = Math.max(3, Math.floor((rows - 6) / 5))
-  const clampedOffset = Math.min(scrollOffset, Math.max(0, messages.length - 1))
-  const viewEnd = Math.max(0, messages.length - clampedOffset)
-  const viewStart = Math.max(0, viewEnd - windowSize)
-  const visibleMessages = messages.slice(viewStart, viewEnd)
-  const hiddenAbove = viewStart
-  const hiddenBelow = messages.length - viewEnd
+  // Header: 3 rows (border-top + content + border-bottom)
+  // InputBar: 4 rows (border-top + input + border-bottom + hints)
+  // Spinner: 1 row when busy
+  const viewportRows = Math.max(4, rows - (busy ? 8 : 7))
+
+  // scrollOffset: lines scrolled up from bottom (0 = pinned to newest content)
+  // When streaming without manual scroll, keep pinned to bottom (pass 0)
+  const effectiveScrollOffset =
+    busy && !manualScrollRef.current ? 0 : (isFinite(scrollOffset) ? scrollOffset : 0)
+
+  const handleMaxScrollChange = useCallback((maxScroll: number) => {
+    maxScrollRef.current = maxScroll
+    // Clamp current offset if content shrank below it.
+    setScrollOffset((o) => (o > maxScroll ? maxScroll : o))
+  }, [])
 
   return (
     <Box flexDirection="column" width={cols}>
@@ -401,14 +421,13 @@ export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
           </Box>
         </Box>
       ) : (
-        <Box flexDirection="column" flexGrow={1} overflowY="hidden">
-          <MessageList
-            messages={visibleMessages}
-            tick={tick}
-            hiddenAbove={hiddenAbove}
-            hiddenBelow={hiddenBelow}
-          />
-        </Box>
+        <MessageList
+          messages={messages}
+          tick={tick}
+          scrollOffset={effectiveScrollOffset}
+          viewportRows={viewportRows}
+          onMaxScrollChange={handleMaxScrollChange}
+        />
       )}
 
       {busy && (
