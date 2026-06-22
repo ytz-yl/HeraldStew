@@ -18,7 +18,6 @@ export async function loadSession(): Promise<HeraldSession> {
       updatedAt: now,
       messages: [],
       summary: "",
-      summaryRecent: "",
       lastTokenCount: 0,
     }
   }

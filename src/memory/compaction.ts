@@ -74,20 +74,23 @@ function serializeMessage(msg: ChatMessage): string {
   return ""
 }
 
-function splitRecent(messages: ChatMessage[]): { head: string; recent: string } {
-  const serialized = messages.map(serializeMessage).filter(Boolean)
+// 返回：head 序列化文本（待压缩）+ recent 原始 messages（保留进 session）
+function splitMessages(messages: ChatMessage[]): { headText: string; recentMessages: ChatMessage[] } {
   let recentTokens = 0
-  let splitIdx = serialized.length
-  for (let i = serialized.length - 1; i >= 0; i--) {
-    const t = Math.round(serialized[i].length / CHARS_PER_TOKEN)
+  let splitIdx = messages.length
+
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const t = Math.round(JSON.stringify(messages[i]).length / CHARS_PER_TOKEN)
     if (recentTokens + t > KEEP_TOKENS) break
     recentTokens += t
     splitIdx = i
   }
-  return {
-    head: serialized.slice(0, splitIdx).join("\n\n"),
-    recent: serialized.slice(splitIdx).join("\n\n"),
-  }
+
+  const headMessages = messages.slice(0, splitIdx)
+  const recentMessages = messages.slice(splitIdx)
+  const headText = headMessages.map(serializeMessage).filter(Boolean).join("\n\n")
+
+  return { headText, recentMessages }
 }
 
 export async function compactHistory(
@@ -96,28 +99,28 @@ export async function compactHistory(
 ): Promise<void> {
   if (session.messages.length === 0) return
 
-  const { head, recent } = splitRecent(session.messages)
-  if (!head) return
+  const { headText, recentMessages } = splitMessages(session.messages)
+  if (!headText) return
 
   const promptParts: string[] = []
+
   if (session.summary) {
     promptParts.push(
-      `Update the anchored summary below using the conversation history above.\nPreserve still-true details, remove stale details, and merge in the new facts.\n<previous-summary>\n${session.summary}\n</previous-summary>`
+      `Below is an existing summary followed by new conversation history.\nUpdate the summary: preserve still-true details, remove stale ones, merge in new facts.\n\n<previous-summary>\n${session.summary}\n</previous-summary>\n\nNew conversation history to merge:\n${headText}`
     )
   } else {
-    promptParts.push("Create a new anchored summary from the conversation history.")
+    promptParts.push(
+      `Create a summary from the conversation history below.\n\n${headText}`
+    )
   }
-  promptParts.push(SUMMARY_PROMPT)
-  if (session.summaryRecent) promptParts.push(session.summaryRecent)
-  promptParts.push(head)
 
-  const summaryUserMsg = promptParts.join("\n\n")
+  promptParts.push(SUMMARY_PROMPT)
 
   let summary = ""
   try {
     await provider.chat(
       "You are a precise summarizer. Follow the template exactly.",
-      [{ role: "user", content: summaryUserMsg }],
+      [{ role: "user", content: promptParts.join("\n\n") }],
       [],
       (text) => { summary += text },
       () => {}
@@ -129,7 +132,6 @@ export async function compactHistory(
   if (!summary.trim()) return
 
   session.summary = summary
-  session.summaryRecent = recent
-  session.messages = []
+  session.messages = recentMessages
   session.lastTokenCount = 0
 }

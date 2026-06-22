@@ -15,10 +15,10 @@ export async function runAgentLoop(
   executor: ToolExecutor,
   onText: (text: string) => void,
   onToolUse: (name: string, input: unknown) => void,
-  context?: { summary?: string; summaryRecent?: string }
+  context?: { summary?: string }
 ): Promise<AgentLoopResult> {
   const history = messages
-  const systemPrompt = buildSystemPrompt(context?.summary, context?.summaryRecent)
+  const systemPrompt = buildSystemPrompt(context?.summary)
   let totalInputTokens = 0
 
   while (true) {

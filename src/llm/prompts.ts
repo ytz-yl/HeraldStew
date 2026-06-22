@@ -61,13 +61,11 @@ Keep responses short and actionable. Use markdown for clarity but don't over-for
 When executing multiple steps, number them and show progress.
 After completing a task, briefly summarize what was done and what's next.`
 
-export function buildSystemPrompt(summary?: string, summaryRecent?: string): string {
+export function buildSystemPrompt(summary?: string): string {
   let prompt = BASE_SYSTEM_PROMPT
 
   if (summary) {
-    prompt += `\n\n<prior_context>\n${summary}`
-    if (summaryRecent) prompt += `\n\n--- Recent conversation ---\n${summaryRecent}`
-    prompt += `\n</prior_context>`
+    prompt += `\n\n<conversation-checkpoint>\n${summary}\n</conversation-checkpoint>`
   }
 
   return prompt

@@ -6,6 +6,5 @@ export interface HeraldSession {
   updatedAt: string
   messages: ChatMessage[]
   summary: string
-  summaryRecent: string
   lastTokenCount: number
 }

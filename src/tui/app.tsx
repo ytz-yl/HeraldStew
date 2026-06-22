@@ -280,6 +280,7 @@ export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
 
       try {
         const wrappedExecutor = async (name: string, execInput: unknown) => {
+          flushText(true)
           const tcId = `tc-${toolSeq++}`
           const tc: ToolCallData = { id: tcId, name, input: execInput as Record<string, unknown>, status: "running" }
           appendPart({ type: "tool", call: tc })
@@ -311,7 +312,7 @@ export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
           },
           (_toolName, _toolInput) => {},
           session
-            ? { summary: session.summary, summaryRecent: session.summaryRecent }
+            ? { summary: session.summary }
             : undefined
         )
 
