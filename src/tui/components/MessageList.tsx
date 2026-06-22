@@ -20,9 +20,11 @@ export interface Message {
 interface MessageListProps {
   messages: Message[]
   tick: number
+  hiddenAbove?: number
+  hiddenBelow?: number
 }
 
-function UserMessage({ msg }: { msg: Message }) {
+const UserMessage = React.memo(function UserMessage({ msg }: { msg: Message }) {
   const text = msg.parts.filter((p): p is Extract<MessagePart, { type: "text" }> => p.type === "text").map(p => p.text).join("")
   return (
     <Box flexDirection="column" marginBottom={1} paddingX={2}>
@@ -34,9 +36,9 @@ function UserMessage({ msg }: { msg: Message }) {
       </Box>
     </Box>
   )
-}
+})
 
-function AssistantMessage({ msg, tick }: { msg: Message; tick: number }) {
+const AssistantMessage = React.memo(function AssistantMessage({ msg, tick }: { msg: Message; tick: number }) {
   return (
     <Box flexDirection="column" marginBottom={1} paddingX={2}>
       <Box gap={1} marginBottom={0}>
@@ -60,7 +62,7 @@ function AssistantMessage({ msg, tick }: { msg: Message; tick: number }) {
       })}
     </Box>
   )
-}
+})
 
 function Divider() {
   const { stdout } = useStdout()
@@ -72,8 +74,8 @@ function Divider() {
   )
 }
 
-export function MessageList({ messages, tick }: MessageListProps) {
-  if (messages.length === 0) {
+export function MessageList({ messages, tick, hiddenAbove = 0, hiddenBelow = 0 }: MessageListProps) {
+  if (messages.length === 0 && hiddenAbove === 0) {
     return (
       <Box flexDirection="column" alignItems="center" justifyContent="center" flexGrow={1} paddingY={2}>
         <Text color={C.surface2}>Ask me to install, configure, or manage your AI agent tools.</Text>
@@ -84,15 +86,25 @@ export function MessageList({ messages, tick }: MessageListProps) {
 
   return (
     <Box flexDirection="column" flexGrow={1}>
+      {hiddenAbove > 0 && (
+        <Box paddingX={2} marginBottom={1}>
+          <Text color={C.surface2}>↑ {hiddenAbove} older {hiddenAbove === 1 ? "message" : "messages"}  (↑/↓ to scroll)</Text>
+        </Box>
+      )}
       {messages.map((msg, i) => (
         <Box key={msg.id} flexDirection="column">
           {i > 0 && <Divider />}
           {msg.role === "user"
             ? <UserMessage msg={msg} />
-            : <AssistantMessage msg={msg} tick={tick} />
+            : <AssistantMessage msg={msg} tick={msg.streaming ? tick : 0} />
           }
         </Box>
       ))}
+      {hiddenBelow > 0 && (
+        <Box paddingX={2} marginTop={1}>
+          <Text color={C.surface2}>↓ {hiddenBelow} newer {hiddenBelow === 1 ? "message" : "messages"}</Text>
+        </Box>
+      )}
     </Box>
   )
 }

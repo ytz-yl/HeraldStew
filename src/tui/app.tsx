@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from "react"
-import { Box, Text, useApp, useStdout } from "ink"
+import { Box, Text, useApp, useStdout, useInput } from "ink"
 import { Header } from "./components/Header.js"
 import { MessageList, type Message, type MessagePart } from "./components/MessageList.js"
 import { InputBar } from "./components/InputBar.js"
+import { Dashboard } from "./components/Dashboard.js"
 import { C, SPINNER_FRAMES } from "./theme.js"
 import type { LLMProvider } from "../llm/types.js"
 import type { ProviderConfig } from "../llm/types.js"
@@ -13,6 +14,8 @@ import type { ToolCall as ToolCallData } from "./components/ToolCard.js"
 import { loadSession, saveSession } from "../memory/store.js"
 import { shouldCompact, compactHistory, estimateTokens } from "../memory/compaction.js"
 import type { HeraldSession } from "../memory/types.js"
+import { getDashboardData, getDashboardLiveData, getStaticInfoCached } from "../agents/dashboard.js"
+import type { AgentStatus, AgentStaticInfo, ProjectGroup } from "../agents/observer.js"
 
 interface AppProps {
   provider: LLMProvider
@@ -28,6 +31,7 @@ function modelLabel(config: ProviderConfig): string {
 let _msgId = 0
 const nextId = () => String(++_msgId)
 
+
 export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
   const { exit: _exit } = useApp()
   const { stdout } = useStdout()
@@ -35,17 +39,65 @@ export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
   const [input, setInput] = useState("")
   const [busy, setBusy] = useState(false)
   const [tick, setTick] = useState(0)
+  const [scrollOffset, setScrollOffset] = useState(0)
+  const [showDashboard, setShowDashboard] = useState(false)
+  const [dashboardData, setDashboardData] = useState<{ statuses: AgentStatus[]; projects: ProjectGroup[] } | null>(null)
+  const [dashCursor, setDashCursor] = useState(0)
+  const [dashExpanded, setDashExpanded] = useState<Set<string>>(new Set())
+  const staticsRef = useRef<AgentStaticInfo[] | null>(null)
   const historyRef = useRef<ChatMessage[]>([])
   const sessionRef = useRef<HeraldSession | null>(null)
   const executor = createToolExecutor()
 
-  // Load persisted session on mount
+  useEffect(() => {
+    if (showDashboard) {
+      setInput("")
+    }
+  }, [showDashboard])
+
+  // 30s live 轮询，只在 dashboard 可见时运行
+  useEffect(() => {
+    if (!showDashboard) return
+    const statics = staticsRef.current
+    if (!statics) return
+
+    const refresh = () => {
+      getDashboardLiveData(statics).then(setDashboardData).catch(() => {})
+    }
+
+    const id = setInterval(refresh, 30_000)
+    return () => clearInterval(id)
+  }, [showDashboard])
+
+  const toggleDashboard = useCallback(async () => {
+    if (busy) return
+    if (showDashboard) {
+      setShowDashboard(false)
+      setDashCursor(0)
+      setDashExpanded(new Set())
+    } else {
+      // 先立即显示（用缓存数据或 loading）
+      setShowDashboard(true)
+      setDashCursor(0)
+      setDashExpanded(new Set())
+      try {
+        // 如果有缓存直接用；没有就触发完整加载
+        if (staticsRef.current && dashboardData) {
+          getDashboardLiveData(staticsRef.current).then(setDashboardData).catch(() => {})
+        } else {
+          const data = await getDashboardData()
+          staticsRef.current = await getStaticInfoCached()
+          setDashboardData(data)
+        }
+      } catch { /* ignore */ }
+    }
+  }, [showDashboard, busy, dashboardData])
+
   useEffect(() => {
     loadSession().then((session) => {
       sessionRef.current = session
       historyRef.current = session.messages
 
-      // Restore UI messages from history, reconstructing ordered parts
       const restored: Message[] = []
       const toolResultsMap = new Map<string, string>()
       for (const msg of session.messages) {
@@ -54,7 +106,6 @@ export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
         }
       }
 
-      // One UI assistant message per user turn, parts in order
       let assistantParts: MessagePart[] = []
       let assistantId: string | null = null
 
@@ -88,7 +139,6 @@ export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
             })
           }
         }
-        // role === "tool": consumed into toolResultsMap
       }
       flushAssistant()
 
@@ -96,19 +146,61 @@ export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
     })
   }, [])
 
-  // Spinner ticker
   useEffect(() => {
     if (!busy) return
     const id = setInterval(() => setTick((t) => t + 1), 80)
     return () => clearInterval(id)
   }, [busy])
 
+  useInput((inputChar, key) => {
+    if (key.ctrl && inputChar === "d") {
+      toggleDashboard()
+      return
+    }
+
+    if (showDashboard && dashboardData) {
+      const projectCount = dashboardData.projects.length
+      if (projectCount === 0) return
+
+      if (key.upArrow) {
+        setDashCursor((c) => Math.max(0, c - 1))
+      } else if (key.downArrow) {
+        setDashCursor((c) => Math.min(projectCount - 1, c + 1))
+      } else if (key.return || key.rightArrow) {
+        const project = dashboardData.projects[dashCursor]?.project
+        if (project) {
+          setDashExpanded((prev) => {
+            const next = new Set(prev)
+            if (next.has(project)) next.delete(project)
+            else next.add(project)
+            return next
+          })
+        }
+      } else if (key.leftArrow) {
+        const project = dashboardData.projects[dashCursor]?.project
+        if (project) {
+          setDashExpanded((prev) => {
+            const next = new Set(prev)
+            next.delete(project)
+            return next
+          })
+        }
+      }
+    } else {
+      if (key.upArrow) {
+        setScrollOffset((o) => Math.min(o + 1, Math.max(0, messages.length - 1)))
+      } else if (key.downArrow) {
+        setScrollOffset((o) => Math.max(0, o - 1))
+      }
+    }
+  })
+
   const handleSubmit = useCallback(
     async (text: string) => {
       if (!text.trim() || busy) return
       setInput("")
+      setScrollOffset(0)
 
-      // Built-in /doctor command
       if (text.trim() === "/doctor") {
         setMessages((prev) => [...prev, { id: nextId(), role: "user", parts: [{ type: "text", text: text.trim() }] }])
         setBusy(true)
@@ -127,14 +219,12 @@ export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
 
       let toolSeq = 0
 
-      // Helper: append a part to the assistant message
       const appendPart = (part: MessagePart) => {
         setMessages((prev) =>
           prev.map((m) => m.id === assistantId ? { ...m, parts: [...m.parts, part] } : m)
         )
       }
 
-      // Helper: update the last tool part in the assistant message
       const updateLastTool = (tcId: string, updater: (tc: ToolCallData) => ToolCallData) => {
         setMessages((prev) =>
           prev.map((m) => {
@@ -152,19 +242,56 @@ export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
         )
       }
 
+      let pendingText = ""
+      let lastTextFlush = 0
+      const flushText = (force = false) => {
+        if (!pendingText) return
+        const now = Date.now()
+        if (!force && now - lastTextFlush < 50) return
+        lastTextFlush = now
+        const s = pendingText
+        pendingText = ""
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.id !== assistantId) return m
+            const parts = [...m.parts]
+            const last = parts[parts.length - 1]
+            if (last?.type === "text") {
+              parts[parts.length - 1] = { type: "text", text: last.text + s }
+            } else {
+              parts.push({ type: "text", text: s })
+            }
+            return { ...m, parts }
+          })
+        )
+      }
+
+      const pendingToolOutput = new Map<string, string>()
+      let lastToolFlush = 0
+      const flushToolOutput = (tcId: string, force = false) => {
+        const pending = pendingToolOutput.get(tcId)
+        if (!pending) return
+        const now = Date.now()
+        if (!force && now - lastToolFlush < 50) return
+        lastToolFlush = now
+        pendingToolOutput.delete(tcId)
+        updateLastTool(tcId, (t) => ({ ...t, output: ((t.output ?? "") + pending).slice(-2000) }))
+      }
+
       try {
-        const wrappedExecutor = async (name: string, input: unknown) => {
+        const wrappedExecutor = async (name: string, execInput: unknown) => {
           const tcId = `tc-${toolSeq++}`
-          const tc: ToolCallData = { id: tcId, name, input: input as Record<string, unknown>, status: "running" }
+          const tc: ToolCallData = { id: tcId, name, input: execInput as Record<string, unknown>, status: "running" }
           appendPart({ type: "tool", call: tc })
 
-          const result = await executor(name, input, (chunk) => {
-            updateLastTool(tcId, (t) => ({ ...t, output: ((t.output ?? "") + chunk).slice(-2000) }))
+          const result = await executor(name, execInput, (chunk) => {
+            pendingToolOutput.set(tcId, (pendingToolOutput.get(tcId) ?? "") + chunk)
+            flushToolOutput(tcId)
           })
 
+          flushToolOutput(tcId, true)
           updateLastTool(tcId, (t) => ({ ...t, status: "done", output: result }))
 
-          // Persist after every tool call so partial progress survives errors
           if (sessionRef.current) {
             sessionRef.current.messages = historyRef.current
             await saveSession(sessionRef.current)
@@ -179,20 +306,8 @@ export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
           historyRef.current,
           wrappedExecutor,
           (chunk) => {
-            // Append to last text part, or create a new one
-            setMessages((prev) =>
-              prev.map((m) => {
-                if (m.id !== assistantId) return m
-                const parts = [...m.parts]
-                const last = parts[parts.length - 1]
-                if (last?.type === "text") {
-                  parts[parts.length - 1] = { type: "text", text: last.text + chunk }
-                } else {
-                  parts.push({ type: "text", text: chunk })
-                }
-                return { ...m, parts }
-              })
-            )
+            pendingText += chunk
+            flushText()
           },
           (_toolName, _toolInput) => {},
           session
@@ -200,11 +315,12 @@ export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
             : undefined
         )
 
+        flushText(true)
+
         setMessages((prev) =>
           prev.map((m) => m.id === assistantId ? { ...m, streaming: false } : m)
         )
 
-        // Persist session
         if (sessionRef.current) {
           sessionRef.current.messages = historyRef.current
           sessionRef.current.lastTokenCount =
@@ -213,7 +329,6 @@ export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
               : estimateTokens(historyRef.current)
           await saveSession(sessionRef.current)
 
-          // Compact if needed
           if (shouldCompact(sessionRef.current, maxContextTokens)) {
             await compactHistory(provider, sessionRef.current)
             historyRef.current = sessionRef.current.messages
@@ -222,6 +337,7 @@ export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
         }
       } catch (err) {
         const errText = err instanceof Error ? err.message : String(err)
+        flushText(true)
         setMessages((prev) =>
           prev.map((m) => {
             if (m.id !== assistantId) return m
@@ -243,15 +359,56 @@ export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
   )
 
   const cols = stdout?.columns ?? 80
+  const rows = stdout?.rows ?? 24
   const spinnerChar = SPINNER_FRAMES[tick % SPINNER_FRAMES.length]
+
+  const windowSize = Math.max(3, Math.floor((rows - 6) / 5))
+  const clampedOffset = Math.min(scrollOffset, Math.max(0, messages.length - 1))
+  const viewEnd = Math.max(0, messages.length - clampedOffset)
+  const viewStart = Math.max(0, viewEnd - windowSize)
+  const visibleMessages = messages.slice(viewStart, viewEnd)
+  const hiddenAbove = viewStart
+  const hiddenBelow = messages.length - viewEnd
 
   return (
     <Box flexDirection="column" width={cols}>
-      <Header model={modelLabel(providerConfig)} providerType={providerConfig.type} />
-
-      <Box flexDirection="column" flexGrow={1} overflowY="hidden">
-        <MessageList messages={messages} tick={tick} />
+      <Box>
+        <Header model={modelLabel(providerConfig)} providerType={providerConfig.type} />
       </Box>
+
+      {showDashboard && dashboardData ? (
+        <Box flexDirection="column" flexGrow={1}>
+          <Dashboard
+            statuses={dashboardData.statuses}
+            projects={dashboardData.projects}
+            cursorIndex={dashCursor}
+            expandedSet={dashExpanded}
+          />
+          <Box paddingX={3} gap={3} marginTop={1}>
+            <Text color={C.surface2} dimColor>
+              <Text color={C.overlay0}>↑↓</Text> nav
+            </Text>
+            <Text color={C.surface2} dimColor>
+              <Text color={C.overlay0}>Enter/→</Text> expand
+            </Text>
+            <Text color={C.surface2} dimColor>
+              <Text color={C.overlay0}>←</Text> collapse
+            </Text>
+            <Text color={C.surface2} dimColor>
+              <Text color={C.overlay0}>Ctrl+D</Text> chat
+            </Text>
+          </Box>
+        </Box>
+      ) : (
+        <Box flexDirection="column" flexGrow={1} overflowY="hidden">
+          <MessageList
+            messages={visibleMessages}
+            tick={tick}
+            hiddenAbove={hiddenAbove}
+            hiddenBelow={hiddenBelow}
+          />
+        </Box>
+      )}
 
       {busy && (
         <Box paddingX={3} marginBottom={0}>
@@ -265,6 +422,7 @@ export function App({ provider, providerConfig, maxContextTokens }: AppProps) {
         onChange={setInput}
         onSubmit={handleSubmit}
         disabled={busy}
+        showDashboard={showDashboard}
       />
     </Box>
   )

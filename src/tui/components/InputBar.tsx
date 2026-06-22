@@ -9,9 +9,12 @@ interface InputBarProps {
   onSubmit: (v: string) => void
   disabled: boolean
   placeholder?: string
+  showDashboard?: boolean
 }
 
-export function InputBar({ value, onChange, onSubmit, disabled, placeholder }: InputBarProps) {
+export function InputBar({ value, onChange, onSubmit, disabled, placeholder, showDashboard }: InputBarProps) {
+  const textInputFocus = !disabled && !showDashboard
+
   return (
     <Box flexDirection="column">
       <Box
@@ -24,9 +27,9 @@ export function InputBar({ value, onChange, onSubmit, disabled, placeholder }: I
           <Text color={disabled ? C.surface2 : C.brand} bold>
             {disabled ? "⌛" : "❯"}
           </Text>
-          {disabled ? (
+          {disabled || showDashboard ? (
             <Text color={C.overlay0} dimColor>
-              {placeholder ?? "Waiting for response…"}
+              {showDashboard ? "Dashboard mode — Ctrl+D to switch to chat" : (placeholder ?? "Waiting for response…")}
             </Text>
           ) : (
             <TextInput
@@ -34,7 +37,7 @@ export function InputBar({ value, onChange, onSubmit, disabled, placeholder }: I
               onChange={onChange}
               onSubmit={onSubmit}
               placeholder={placeholder ?? "Message HeraldStew…"}
-              focus={!disabled}
+              focus={textInputFocus}
             />
           )}
         </Box>
@@ -42,14 +45,21 @@ export function InputBar({ value, onChange, onSubmit, disabled, placeholder }: I
 
       <Box paddingX={3} gap={3}>
         <Text color={C.surface2} dimColor>
-          <Text color={C.overlay0}>Enter</Text> send
+          <Text color={C.overlay0}>Ctrl+D</Text> {showDashboard ? "chat" : "dashboard"}
         </Text>
-        <Text color={C.surface2} dimColor>
-          <Text color={C.overlay0}>Ctrl+C</Text> quit
-        </Text>
-        <Text color={C.surface2} dimColor>
-          <Text color={C.overlay0}>/doctor</Text> check env
-        </Text>
+        {!showDashboard && (
+          <>
+            <Text color={C.surface2} dimColor>
+              <Text color={C.overlay0}>Enter</Text> send
+            </Text>
+            <Text color={C.surface2} dimColor>
+              <Text color={C.overlay0}>Ctrl+C</Text> quit
+            </Text>
+            <Text color={C.surface2} dimColor>
+              <Text color={C.overlay0}>/doctor</Text> env
+            </Text>
+          </>
+        )}
       </Box>
     </Box>
   )
