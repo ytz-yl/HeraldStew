@@ -8,14 +8,21 @@ import { log } from "../utils/logger.js"
 import { resolveProvider, loadConfig } from "../llm/provider.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const pkgPath = join(__dirname, "../../package.json")
 
-let version = "0.1.0"
-try {
-  const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as { version: string }
-  version = pkg.version
-} catch {
-  // built binary — version embedded at build time
+// In dev, __dirname is src/cli (package.json is ../../).
+// In the published package, __dirname is dist (package.json is ../).
+// Try both so the version stays correct in either layout.
+let version = "0.0.0"
+for (const rel of ["../package.json", "../../package.json"]) {
+  try {
+    const pkg = JSON.parse(readFileSync(join(__dirname, rel), "utf-8")) as { version?: string; name?: string }
+    if (pkg.name === "heraldstew" && pkg.version) {
+      version = pkg.version
+      break
+    }
+  } catch {
+    // try next candidate
+  }
 }
 
 program
