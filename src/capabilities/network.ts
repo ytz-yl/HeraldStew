@@ -21,8 +21,7 @@ export async function fetchUrl(url: string, proxy?: string): Promise<string> {
     if (!response.ok) {
       return `HTTP ${response.status}: ${response.statusText}`
     }
-    const text = await response.text()
-    return text.length > 20_000 ? text.slice(0, 20_000) + "\n... (truncated)" : text
+    return await response.text()
   } catch (err) {
     return `Error fetching URL: ${err instanceof Error ? err.message : String(err)}`
   }
